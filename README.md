@@ -3,7 +3,7 @@ npm install --legacy-peer-deps
 ```
 
 ```
-APOLLO_PORT=4001 npm start
+PORT=4001 npm start
 ```
 
 ```
