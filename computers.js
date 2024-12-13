@@ -1,6 +1,6 @@
-import express from 'express';
-import {buildSchema} from 'graphql';
-import {graphqlHTTP} from 'express-graphql';
+import {createSchema, createYoga} from 'graphql-yoga'
+import { useDeferStream } from '@graphql-yoga/plugin-defer-stream';
+import {createServer} from 'node:http'
 import fs from 'fs';
 import path from 'path';
 
@@ -14,38 +14,39 @@ const schemaPath = path.join(process.cwd(), 'computers.graphqls');
 const sdl = fs.readFileSync(schemaPath, 'utf-8');
 
 // Resolvers object
-const root = {
-  computers: () => {
-    return COMPUTERS;
-  },
-  computer: (_, args) => {
-    return COMPUTERS.find(p => p.id === args.id);
-  },
-  Computer: {
-    errorField: (_) => {
-      throw new Error("Error field");
+const schema = createSchema({
+  typeDefs: sdl,
+  resolvers: {
+    Query: {
+      computers: () => {
+        return COMPUTERS;
+      },
+      computer: (_, args) => {
+        return COMPUTERS.find(p => p.id === args.id);
+      }
     },
-    nonNullErrorField: (_, args, context) => {
-      return null;
+    Computer: {
+      errorField: (_) => {
+        throw new Error("Error field");
+      },
+      nonNullErrorField: (_, args, context) => {
+        return null;
+      }
     }
   }
-};
+});
 
-// Build schema from SDL
-const schema = buildSchema(sdl);
-
-// Create Express app
-const app = express();
-
-// Add GraphQL endpoint with resolvers
-app.use('/graphql', graphqlHTTP({
+// Create a Yoga instance with a GraphQL schema.
+const yoga = createYoga({
   schema: schema,
-  rootValue: root,
-  graphiql: true // Enable GraphiQL interface for testing
-}));
+  plugins: [useDeferStream()]
+})
+
+// Pass it into a server to hook into request handlers.
+const server = createServer(yoga)
 
 // Start the server
 const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}/graphql`);
-});
+})
